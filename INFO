@@ -1,0 +1,282 @@
+CSEP 501 AU11
+Minijava Final Turn-In
+Alan Ludwig (AlanL)
+Chung Ng (ChungNg)
+
+UNUSUAL THINGS ABOUT OUR COMPILER:
+
+The first thing you should know about our compiler is that we implemented code
+generation for linux, so you'll need a linux system or a CSE VM to do the
+testing.
+
+The only extension that we did in our compiler was to support arbitrary numbers
+of parameters for function calls. This was implemented by allocating extra stack
+space BELOW the locals to spill the register parameters.  We then updated our
+"offset" function for the parameters to always retrieve them from the stack.
+The register parameters are put on the stack below the locals with the
+parameters on the left having the higher addresses. 
+
+We did not allocate a fixed amount of stack space.  Rather we wrapped our
+generation of any PUSH/POP call in member functions that incremented and
+decremented a counter.  We also wrapped our generation of CALL with a member
+function.  When an external CALL was made, an extra push/pop was added to ensure
+the stack was 16-byte aligned.  For our arbitrary-parameter calls, we ensured
+that we did the extra push/pop combination ahead of pushing the parameters on
+the stack so that the stack pointer was aligned at the time of the call.
+
+The only register that we made any special effort to preserve was RDI.  Our code
+generation did make use of the fact that the 'this' pointer was in RDI.  For all
+other parameters we retrieved them from the stack where we spilled them
+immediately after the function prolog.  We intentionally avoided using registers
+that needed to be callee preserved to avoid extra book keeping.
+
+ADDITIONAL OPTIMIZATIONS THAT COULD BE MADE:
+
+The code gen visitor for arrays store the length of the array into the first
+element of the array.  This makes all array accesses require an additional inc
+to the index.  An optimization that could be made is to return the address of
+the actual first element of the array as the address to the array, and then
+modify the length access to decrement this address to find the "hidden" length
+property when length is accessed thus saving the extra adds when accessing array
+elements.
+
+The NOT instructions uses a brute force if-else construct.  This can be
+simplified to a single XOR operation.
+
+Conditional generators (if-else, while) rely on the boolean expression visitors
+to leave 0 (false) or 1 (true) in %rax.  This results in extraneous cmpq and
+jump instructions.  It could be optimized that the necessary jump instruction be
+stored in a global, and that the expression visitor would execute the cmpq, set
+a flag for the proper jump instruction to use, and then the conditional visitor
+would generate the jump instruction.  This would save extra cmpq and jumps.
+
+INSTRUCTIONS FOR USING OUR COMPILER:
+
+Our compiler is standard as per the instructions.  It runs on the CSE Linux VM
+taking the java program on standard input and outputting  Linux x86-64 assembly
+code to standard output.  Here is the text of the shell script (minijava.sh)
+that we used to compile and execute the example java programs from the command
+line:
+
+    java -classpath build/classes:lib/CUP.jar MiniJava < $1 > a.s
+    gcc src/boot.c a.s
+    ./a.out
+
+To execute any particular sample, simply run from the minijava directory:
+
+    ./minijava.sh <path to test file>
+
+for instance:
+
+    ./minijava.sh SamplePrograms/SampleMiniJavaPrograms/BinarySearch.java
+ 
+EXAMPLE MINIJAVA PROGRAM OUTPUT:
+
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/BinarySearch.java
+
+put: 20
+put: 21
+put: 22
+put: 23
+put: 24
+put: 25
+put: 26
+put: 27
+put: 28
+put: 29
+put: 30
+put: 31
+put: 32
+put: 33
+put: 34
+put: 35
+put: 36
+put: 37
+put: 38
+put: 99999
+put: 0
+put: 0
+put: 1
+put: 1
+put: 1
+put: 1
+put: 0
+put: 0
+put: 999
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/BinaryTree.java
+
+put: 16
+put: 100000000
+put: 8
+put: 16
+put: 4
+put: 8
+put: 12
+put: 14
+put: 16
+put: 20
+put: 24
+put: 28
+put: 1
+put: 1
+put: 1
+put: 0
+put: 1
+put: 4
+put: 8
+put: 14
+put: 16
+put: 20
+put: 24
+put: 28
+put: 0
+put: 0
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/BubbleSort.java
+
+put: 20
+put: 7
+put: 12
+put: 18
+put: 2
+put: 11
+put: 6
+put: 9
+put: 19
+put: 5
+put: 99999
+put: 2
+put: 5
+put: 6
+put: 7
+put: 9
+put: 11
+put: 12
+put: 18
+put: 19
+put: 20
+put: 0
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/Factorial.java
+
+put: 3628800
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/LinearSearch.java
+
+put: 10
+put: 11
+put: 12
+put: 13
+put: 14
+put: 15
+put: 16
+put: 17
+put: 18
+put: 9999
+put: 0
+put: 1
+put: 1
+put: 0
+put: 55
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/LinkedList.java
+
+put: 25
+put: 10000000
+put: 39
+put: 25
+put: 10000000
+put: 22
+put: 39
+put: 25
+put: 1
+put: 0
+put: 10000000
+put: 28
+put: 22
+put: 39
+put: 25
+put: 2220000
+put: -555
+put: -555
+put: 28
+put: 22
+put: 25
+put: 33300000
+put: 22
+put: 25
+put: 44440000
+put: 0
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/QuickSort.java
+
+put: 20
+put: 7
+put: 12
+put: 18
+put: 2
+put: 11
+put: 6
+put: 9
+put: 19
+put: 5
+put: 9999
+put: 2
+put: 5
+put: 6
+put: 7
+put: 9
+put: 11
+put: 12
+put: 18
+put: 19
+put: 20
+put: 0
+
+MiniJavaOutput: SamplePrograms/SampleMiniJavaPrograms/TreeVisitor.java
+
+put: 16
+put: 100000000
+put: 4
+put: 8
+put: 12
+put: 14
+put: 16
+put: 20
+put: 24
+put: 28
+put: 100000000
+put: 50000000
+put: 333
+put: 333
+put: 333
+put: 28
+put: 24
+put: 333
+put: 20
+put: 16
+put: 333
+put: 333
+put: 333
+put: 14
+put: 12
+put: 8
+put: 333
+put: 4
+put: 100000000
+put: 1
+put: 1
+put: 1
+put: 0
+put: 1
+put: 4
+put: 8
+put: 14
+put: 16
+put: 20
+put: 24
+put: 28
+put: 0
+put: 0
